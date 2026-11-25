@@ -173,8 +173,7 @@
 
     .chip:hover { border-color: var(--accent-2); color: var(--text); }
 
-    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
-    @media (max-width: 760px) { .grid { grid-template-columns: 1fr; } form { flex-direction: column; } }
+    @media (max-width: 760px) { form { flex-direction: column; } }
 
     .answer {
       margin: 0;
@@ -275,20 +274,18 @@
       <div class="examples" id="examples"></div>
     </section>
 
-    <div class="grid">
-      <section class="card">
-        <h2>Answer</h2>
-        <p class="answer placeholder" id="answer">Ask a question above to get started.</p>
-      </section>
+    <section class="card">
+      <h2>Answer</h2>
+      <p class="answer placeholder" id="answer">Ask a question above to get started.</p>
+    </section>
 
-      <section class="card">
-        <h2>What the model decided</h2>
-        <div class="label">Structured query plan (Prompt API JSON schema)</div>
-        <pre id="plan">Waiting for a question…</pre>
-        <div class="label">Firestore query</div>
-        <pre id="query">—</pre>
-      </section>
-    </div>
+    <section class="card">
+      <h2>What the model decided</h2>
+      <div class="label">Structured query plan (Prompt API JSON schema)</div>
+      <pre id="plan">Waiting for a question…</pre>
+      <div class="label">Firestore query</div>
+      <pre id="query">—</pre>
+    </section>
 
     <section class="card">
       <h2>Data returned from Firebase</h2>
