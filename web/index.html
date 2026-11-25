@@ -1,0 +1,840 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Local Orders Copilot · Chrome built-in AI + Firebase</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #0b0f14;
+      --panel: #131a22;
+      --panel-2: #0f151c;
+      --border: #263241;
+      --text: #e6edf3;
+      --muted: #8b9aab;
+      --accent: #7bd4a8;
+      --accent-2: #7aa7ff;
+      --warn: #f0c674;
+      --bad: #f18787;
+      --radius: 14px;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background: radial-gradient(1200px 600px at 15% -10%, #16304a 0%, transparent 55%), var(--bg);
+      color: var(--text);
+      font: 15px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    }
+
+    header, main {
+      max-width: 1080px;
+      margin: 0 auto;
+      padding: 0 20px;
+    }
+
+    header { padding-top: 40px; }
+
+    h1 {
+      margin: 0 0 6px;
+      font-size: 30px;
+      letter-spacing: -0.02em;
+    }
+
+    .subtitle { margin: 0 0 20px; color: var(--muted); }
+
+    .badges { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 24px; }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 11px;
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      background: var(--panel-2);
+      font-size: 13px;
+      color: var(--muted);
+    }
+
+    .badge::before {
+      content: "";
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--muted);
+    }
+
+    .badge.ok::before { background: var(--accent); }
+    .badge.warn::before { background: var(--warn); }
+    .badge.bad::before { background: var(--bad); }
+
+    .model-panel { margin-bottom: 24px; }
+
+    .model-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .model-head h2 { margin: 0; }
+
+    .model-head button { padding: 8px 14px; font-size: 13px; }
+
+    .progress-track {
+      height: 8px;
+      margin-top: 12px;
+      border-radius: 999px;
+      border: 1px solid var(--border);
+      background: var(--panel-2);
+      overflow: hidden;
+    }
+
+    .progress-fill {
+      height: 100%;
+      width: 0%;
+      background: linear-gradient(90deg, var(--accent-2), var(--accent));
+      transition: width 200ms ease;
+    }
+
+    /* Used when Chrome has started downloading but has not reported a percentage yet. */
+    .progress-fill.indeterminate {
+      width: 40%;
+      background: linear-gradient(90deg, transparent, var(--accent), transparent);
+      animation: progress-slide 1.2s linear infinite;
+    }
+
+    @keyframes progress-slide {
+      from { transform: translateX(-110%); }
+      to { transform: translateX(360%); }
+    }
+
+    .card {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 20px;
+      margin-bottom: 18px;
+      box-shadow: 0 12px 40px rgb(0 0 0 / 20%);
+    }
+
+    .card h2 {
+      margin: 0 0 14px;
+      font-size: 14px;
+      text-transform: uppercase;
+      letter-spacing: 0.09em;
+      color: var(--muted);
+    }
+
+    form { display: flex; gap: 10px; }
+
+    input[type="text"] {
+      flex: 1;
+      min-width: 0;
+      padding: 12px 14px;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      background: var(--panel-2);
+      color: var(--text);
+      font-size: 16px;
+    }
+
+    input[type="text"]:focus { outline: 2px solid var(--accent-2); outline-offset: 1px; }
+
+    button {
+      padding: 12px 18px;
+      border-radius: 10px;
+      border: 1px solid transparent;
+      background: var(--accent);
+      color: #062015;
+      font-weight: 650;
+      font-size: 15px;
+      cursor: pointer;
+    }
+
+    button:disabled { opacity: 0.5; cursor: not-allowed; }
+    button.secondary { background: transparent; color: var(--text); border-color: var(--border); }
+
+    .examples { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+
+    .chip {
+      padding: 6px 11px;
+      border-radius: 999px;
+      border: 1px solid var(--border);
+      background: var(--panel-2);
+      color: var(--muted);
+      font-size: 13px;
+      cursor: pointer;
+    }
+
+    .chip:hover { border-color: var(--accent-2); color: var(--text); }
+
+    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+    @media (max-width: 760px) { .grid { grid-template-columns: 1fr; } form { flex-direction: column; } }
+
+    .answer {
+      margin: 0;
+      font-size: 21px;
+      line-height: 1.45;
+      min-height: 64px;
+    }
+
+    .placeholder { color: var(--muted); font-size: 16px; }
+
+    pre {
+      margin: 0;
+      overflow: auto;
+      padding: 12px;
+      border-radius: 10px;
+      background: var(--panel-2);
+      border: 1px solid var(--border);
+      font-size: 12.5px;
+      line-height: 1.5;
+      color: #b9d9ff;
+    }
+
+    .label {
+      margin: 14px 0 6px;
+      font-size: 12px;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+
+    .summary { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 14px; }
+
+    .summary .stat {
+      padding: 9px 12px;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      background: var(--panel-2);
+      min-width: 120px;
+    }
+
+    .stat span { display: block; color: var(--muted); font-size: 12px; }
+    .stat strong { font-size: 18px; font-weight: 650; }
+
+    .table-wrap { overflow: auto; max-height: 340px; }
+
+    table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+
+    th, td { text-align: left; padding: 9px 10px; border-bottom: 1px solid var(--border); white-space: nowrap; }
+    th { color: var(--muted); font-weight: 600; position: sticky; top: 0; background: var(--panel); }
+    td.amount { text-align: right; font-variant-numeric: tabular-nums; }
+
+    .status-paid { color: var(--accent); }
+    .status-shipped { color: var(--accent-2); }
+    .status-pending { color: var(--warn); }
+    .status-cancelled { color: var(--bad); }
+
+    #log { font: 12.5px/1.6 ui-monospace, SFMono-Regular, Menlo, monospace; color: var(--muted); }
+    #log div:first-child { color: var(--text); }
+
+    .footer-actions { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 14px; flex-wrap: wrap; }
+
+    .hint { color: var(--muted); font-size: 13px; margin: 0; }
+
+    code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Local Orders Copilot</h1>
+    <p class="subtitle">
+      Chrome's built-in Prompt API turns your question into a constrained query plan, then the page
+      reads real documents from a local Firebase Firestore emulator.
+    </p>
+    <div class="badges">
+      <span class="badge" id="ai-status">Chrome AI: checking…</span>
+      <span class="badge" id="firebase-status">Firebase: checking…</span>
+    </div>
+  </header>
+
+  <main>
+    <section class="card model-panel">
+      <div class="model-head">
+        <h2>Model download</h2>
+        <button class="secondary" id="prepare-button" type="button">Prepare model</button>
+      </div>
+      <div class="progress-track" id="progress-track" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+        <div class="progress-fill" id="progress-fill"></div>
+      </div>
+      <p class="hint" id="model-progress-text" aria-live="polite">Checking model availability…</p>
+    </section>
+
+    <section class="card">
+      <h2>Ask a question</h2>
+      <form id="ask-form">
+        <input id="question" type="text" autocomplete="off" placeholder="e.g. How many orders did we have in the past 24 hours?" />
+        <button id="ask-button" type="submit">Ask</button>
+      </form>
+      <div class="examples" id="examples"></div>
+    </section>
+
+    <div class="grid">
+      <section class="card">
+        <h2>Answer</h2>
+        <p class="answer placeholder" id="answer">Ask a question above to get started.</p>
+      </section>
+
+      <section class="card">
+        <h2>What the model decided</h2>
+        <div class="label">Structured query plan (Prompt API JSON schema)</div>
+        <pre id="plan">Waiting for a question…</pre>
+        <div class="label">Firestore query</div>
+        <pre id="query">—</pre>
+      </section>
+    </div>
+
+    <section class="card">
+      <h2>Data returned from Firebase</h2>
+      <div class="summary" id="summary"></div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr><th>Order</th><th>Created</th><th>Customer</th><th>Status</th><th class="amount">Amount</th></tr>
+          </thead>
+          <tbody id="rows"><tr><td colspan="5" class="placeholder">No query has run yet.</td></tr></tbody>
+        </table>
+      </div>
+      <div class="footer-actions">
+        <p class="hint">Only read-only, allowlisted operations are executed — the model cannot run arbitrary queries.</p>
+        <button class="secondary" id="reset-button" type="button">Reset demo data</button>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>Activity</h2>
+      <div id="log"></div>
+    </section>
+  </main>
+
+  <script type="module">
+    import { initializeApp } from 'https://www.gstatic.com/firebasejs/13.4.0/firebase-app.js';
+    import {
+      getFirestore,
+      connectFirestoreEmulator,
+      collection,
+      query,
+      where,
+      orderBy,
+      limit,
+      getDocs,
+      writeBatch,
+      doc,
+      Timestamp,
+    } from 'https://www.gstatic.com/firebasejs/13.4.0/firebase-firestore.js';
+    import { buildDemoOrders } from './shared/seed-data.js';
+
+    const PROJECT_ID = 'demo-lajosllm';
+    const EMULATOR_HOST = 'localhost';
+    const EMULATOR_PORT = 8080;
+
+    const OPERATIONS = [
+      'count_orders',
+      'sum_revenue',
+      'average_order_value',
+      'list_orders',
+      'count_by_status',
+    ];
+    const STATUSES = ['all', 'pending', 'paid', 'shipped', 'cancelled'];
+
+    const MODEL_OPTIONS = {
+      expectedInputs: [{ type: 'text', languages: ['en'] }],
+      expectedOutputs: [{ type: 'text', languages: ['en'] }],
+    };
+
+    const SYSTEM_PROMPT = [
+      'You are a read-only analytics assistant for a store whose orders are stored in Firestore.',
+      'Translate the user question into one query plan object with these fields:',
+      'operation: one of count_orders, sum_revenue, average_order_value, list_orders, count_by_status.',
+      'timeWindowHours: an integer from 1 to 168. Use 24 for "today" or "past 24 hours", 168 for "past week". The data only covers the last 7 days.',
+      'status: one of all, pending, paid, shipped, cancelled. Default to all unless the user names a status.',
+      'limit: an integer from 1 to 25, used only by list_orders. Default to 5.',
+      'rationale: one short sentence explaining your choices.',
+      'sum_revenue and average_order_value exclude cancelled orders unless the user explicitly asks about cancelled orders.',
+      'Never invent values and never choose an operation outside this list.',
+    ].join(' ');
+
+    // Keep the schemas simple so they work with the Prompt API's JSON Schema subset.
+    const PLAN_SCHEMA = {
+      type: 'object',
+      additionalProperties: false,
+      required: ['operation', 'timeWindowHours', 'status', 'limit', 'rationale'],
+      properties: {
+        operation: { type: 'string', enum: OPERATIONS },
+        timeWindowHours: { type: 'integer' },
+        status: { type: 'string', enum: STATUSES },
+        limit: { type: 'integer' },
+        rationale: { type: 'string' },
+      },
+    };
+
+    const ANSWER_SCHEMA = {
+      type: 'object',
+      additionalProperties: false,
+      required: ['answer'],
+      properties: { answer: { type: 'string' } },
+    };
+
+    const EXAMPLES = [
+      'How many orders did we have in the past 24 hours?',
+      'What was our revenue last week?',
+      'Show me the 5 most recent pending orders',
+      'How many cancelled orders were there today?',
+      'Break down orders by status over the last 3 days',
+    ];
+
+    const els = {
+      form: document.querySelector('#ask-form'),
+      input: document.querySelector('#question'),
+      askButton: document.querySelector('#ask-button'),
+      examples: document.querySelector('#examples'),
+      answer: document.querySelector('#answer'),
+      plan: document.querySelector('#plan'),
+      query: document.querySelector('#query'),
+      summary: document.querySelector('#summary'),
+      rows: document.querySelector('#rows'),
+      log: document.querySelector('#log'),
+      resetButton: document.querySelector('#reset-button'),
+      prepareButton: document.querySelector('#prepare-button'),
+      progressTrack: document.querySelector('#progress-track'),
+      progressFill: document.querySelector('#progress-fill'),
+      modelProgressText: document.querySelector('#model-progress-text'),
+      aiStatus: document.querySelector('#ai-status'),
+      firebaseStatus: document.querySelector('#firebase-status'),
+    };
+
+    const firebaseApp = initializeApp({
+      projectId: PROJECT_ID,
+      apiKey: 'demo-api-key',
+      authDomain: `${PROJECT_ID}.firebaseapp.com`,
+      appId: '1:000000000000:web:0000000000000000000000',
+    });
+    const db = getFirestore(firebaseApp);
+    connectFirestoreEmulator(db, EMULATOR_HOST, EMULATOR_PORT);
+
+    let session = null;
+    let busy = false;
+    let modelAvailability = null;
+    let progressHintTimer = null;
+
+    function log(message) {
+      const line = document.createElement('div');
+      const now = new Date();
+      line.textContent = `[${now.toLocaleTimeString()}] ${message}`;
+      els.log.prepend(line);
+    }
+
+    function setStatus(element, text, kind) {
+      element.textContent = text;
+      element.className = `badge ${kind || ''}`;
+    }
+
+    function setModelProgress(percent, text) {
+      const value = Math.max(0, Math.min(100, Math.round(percent)));
+      clearTimeout(progressHintTimer);
+      els.progressFill.classList.remove('indeterminate');
+      els.progressFill.style.width = `${value}%`;
+      els.progressTrack.setAttribute('aria-valuenow', String(value));
+      els.modelProgressText.textContent = text;
+    }
+
+    function setModelIndeterminate(text) {
+      els.progressFill.classList.add('indeterminate');
+      els.progressTrack.setAttribute('aria-valuenow', '0');
+      els.modelProgressText.textContent = text;
+    }
+
+    function setModelReady() {
+      setModelProgress(100, 'Model ready — questions run locally.');
+      els.prepareButton.disabled = true;
+      els.prepareButton.textContent = 'Model ready';
+    }
+
+    function parseJson(text) {
+      const cleaned = String(text).trim().replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '');
+      try {
+        return JSON.parse(cleaned);
+      } catch {
+        const start = cleaned.indexOf('{');
+        const end = cleaned.lastIndexOf('}');
+        if (start !== -1 && end > start) {
+          return JSON.parse(cleaned.slice(start, end + 1));
+        }
+        throw new Error('The model did not return valid JSON.');
+      }
+    }
+
+    function parseAnswer(text) {
+      try {
+        const parsed = parseJson(text);
+        if (parsed && typeof parsed.answer === 'string') return parsed.answer;
+      } catch {
+        // Fall back to treating the whole response as the answer.
+      }
+      const cleaned = String(text).trim().replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '');
+      if (!cleaned) throw new Error('The model returned an empty answer.');
+      return cleaned;
+    }
+
+    function clamp(value, min, max, fallback) {
+      return Number.isFinite(value) ? Math.min(max, Math.max(min, value)) : fallback;
+    }
+
+    function normalizePlan(raw) {
+      const value = parseJson(raw);
+      if (!value || typeof value !== 'object' || Array.isArray(value)) {
+        throw new Error('The query plan was not an object.');
+      }
+      const operation = String(value.operation || '');
+      if (!OPERATIONS.includes(operation)) {
+        throw new Error(`Unsupported operation returned by the model: ${operation || '(empty)'}`);
+      }
+      return {
+        operation,
+        timeWindowHours: clamp(Math.round(Number(value.timeWindowHours)), 1, 168, 24),
+        status: STATUSES.includes(value.status) ? value.status : 'all',
+        limit: clamp(Math.round(Number(value.limit)), 1, 25, 5),
+        rationale: typeof value.rationale === 'string' ? value.rationale.slice(0, 240) : '',
+      };
+    }
+
+    function describeQuery(plan) {
+      const parts = ['collection("orders")'];
+      parts.push(`.where("createdAt", ">=", now - ${plan.timeWindowHours}h)`);
+      parts.push('.where("createdAt", "<=", now)');
+      if (plan.status !== 'all') parts.push(`.where("status", "==", "${plan.status}")`);
+      if (plan.operation === 'list_orders') {
+        parts.push('.orderBy("createdAt", "desc")');
+        parts.push(`.limit(${plan.limit})`);
+      }
+      return parts.join('\n  ');
+    }
+
+    async function runPlan(plan) {
+      const now = new Date();
+      const from = new Date(now.getTime() - plan.timeWindowHours * 60 * 60 * 1000);
+      const constraints = [
+        where('createdAt', '>=', Timestamp.fromDate(from)),
+        where('createdAt', '<=', Timestamp.fromDate(now)),
+      ];
+      if (plan.status !== 'all') constraints.push(where('status', '==', plan.status));
+      if (plan.operation === 'list_orders') {
+        constraints.push(orderBy('createdAt', 'desc'), limit(plan.limit));
+      }
+
+      const snapshot = await getDocs(query(collection(db, 'orders'), ...constraints));
+      const rows = snapshot.docs.map((snapshotDoc) => {
+        const data = snapshotDoc.data();
+        const createdAt = data.createdAt?.toDate?.()
+          ?? (data.createdAt ? new Date(data.createdAt) : null);
+        return { ...data, createdAt, id: snapshotDoc.id };
+      });
+
+      const includeCancelled = plan.status === 'cancelled';
+      const billable = rows.filter((row) => includeCancelled || row.status !== 'cancelled');
+      const revenue = billable.reduce((sum, row) => sum + (Number(row.amount) || 0), 0);
+      const byStatus = rows.reduce((counts, row) => {
+        counts[row.status] = (counts[row.status] || 0) + 1;
+        return counts;
+      }, {});
+
+      return {
+        rows,
+        summary: {
+          operation: plan.operation,
+          window: `last ${plan.timeWindowHours} hours`,
+          statusFilter: plan.status,
+          matchingOrders: rows.length,
+          revenue: Math.round(revenue * 100) / 100,
+          averageOrderValue: billable.length ? Math.round((revenue / billable.length) * 100) / 100 : 0,
+          byStatus,
+        },
+      };
+    }
+
+    function renderSummary(summary) {
+      const labels = {
+        operation: 'Operation',
+        window: 'Window',
+        statusFilter: 'Status filter',
+        matchingOrders: 'Matching orders',
+        revenue: 'Revenue',
+        averageOrderValue: 'Avg. order',
+        byStatus: 'By status',
+      };
+      els.summary.replaceChildren();
+      for (const [key, rawValue] of Object.entries(summary)) {
+        const stat = document.createElement('div');
+        stat.className = 'stat';
+        const label = document.createElement('span');
+        label.textContent = labels[key] || key;
+        const value = document.createElement('strong');
+        if (key === 'byStatus') {
+          value.textContent = Object.entries(rawValue).map(([status, count]) => `${status}: ${count}`).join(' · ') || '—';
+        } else if (key === 'revenue' || key === 'averageOrderValue') {
+          value.textContent = `$${Number(rawValue).toFixed(2)}`;
+        } else {
+          value.textContent = String(rawValue);
+        }
+        stat.append(label, value);
+        els.summary.append(stat);
+      }
+    }
+
+    function renderRows(rows) {
+      els.rows.replaceChildren();
+      if (!rows.length) {
+        const cell = document.createElement('td');
+        cell.colSpan = 5;
+        cell.className = 'placeholder';
+        cell.textContent = 'No matching orders.';
+        const tr = document.createElement('tr');
+        tr.append(cell);
+        els.rows.append(tr);
+        return;
+      }
+      for (const row of rows) {
+        const tr = document.createElement('tr');
+        const values = [
+          row.orderId || row.id,
+          row.createdAt ? row.createdAt.toLocaleString() : '—',
+          row.customer || '—',
+          row.status || '—',
+          `$${Number(row.amount || 0).toFixed(2)}`,
+        ];
+        values.forEach((value, index) => {
+          const cell = document.createElement('td');
+          if (index === 3) cell.className = `status-${row.status}`;
+          if (index === 4) cell.className = 'amount';
+          cell.textContent = String(value);
+          tr.append(cell);
+        });
+        els.rows.append(tr);
+      }
+    }
+
+    async function refreshFirebaseStatus() {
+      try {
+        const snapshot = await getDocs(collection(db, 'orders'));
+        setStatus(els.firebaseStatus, `Firebase Emulator · ${snapshot.size} orders`, 'ok');
+      } catch (error) {
+        setStatus(els.firebaseStatus, `Firebase unreachable · ${error.code || error.message}`, 'bad');
+      }
+    }
+
+    async function refreshAiStatus() {
+      if (typeof LanguageModel === 'undefined') {
+        setStatus(els.aiStatus, 'Chrome AI: not available in this browser', 'bad');
+        setModelProgress(0, 'Built-in AI is not available in this browser.');
+        els.prepareButton.disabled = true;
+        return;
+      }
+      try {
+        const availability = await LanguageModel.availability(MODEL_OPTIONS);
+        modelAvailability = availability;
+        if (availability === 'available') {
+          setStatus(els.aiStatus, 'Chrome AI: ready', 'ok');
+          setModelReady();
+        } else if (availability === 'unavailable') {
+          setStatus(els.aiStatus, 'Chrome AI: unavailable on this device', 'bad');
+          setModelProgress(0, 'The Prompt API is unavailable on this device.');
+          els.prepareButton.disabled = true;
+        } else if (availability === 'downloading') {
+          setStatus(els.aiStatus, 'Chrome AI: model downloading', 'warn');
+          setModelProgress(0, 'Download already in progress. Click “Resume download” to see progress here.');
+          els.prepareButton.textContent = 'Resume download';
+          els.prepareButton.disabled = false;
+        } else {
+          setStatus(els.aiStatus, 'Chrome AI: model downloadable', 'warn');
+          setModelProgress(0, 'Not downloaded yet. Click “Prepare model”, or just ask a question.');
+          els.prepareButton.textContent = 'Prepare model';
+          els.prepareButton.disabled = false;
+        }
+      } catch (error) {
+        setStatus(els.aiStatus, `Chrome AI: ${error.message}`, 'bad');
+        setModelProgress(0, `Could not check model availability: ${error.message}`);
+        els.prepareButton.disabled = true;
+      }
+    }
+
+    async function ensureSession() {
+      if (session) return session;
+      if (typeof LanguageModel === 'undefined') {
+        throw new Error(
+          'This browser does not expose LanguageModel. Use a recent desktop Chrome with the Prompt API enabled.',
+        );
+      }
+
+      // create() must be called in the same task as the user's click. The initial
+      // availability() check can take ~10s, which would consume transient activation,
+      // so use the cached result and call create() before the first await.
+      const activated = navigator.userActivation ? navigator.userActivation.isActive : true;
+      if (modelAvailability === 'unavailable') {
+        throw new Error('The Prompt API is unavailable on this device. Check chrome://on-device-internals.');
+      }
+      if (modelAvailability !== 'available' && !activated) {
+        throw new Error('Click “Prepare model” or “Ask” to start the model download.');
+      }
+
+      log(`Creating Prompt API session (availability: ${modelAvailability || 'unknown'})…`);
+      els.prepareButton.disabled = true;
+      els.prepareButton.textContent = 'Preparing…';
+      setModelIndeterminate(
+        modelAvailability === 'downloading' ? 'Resuming download…' : 'Starting model download…',
+      );
+      progressHintTimer = setTimeout(() => {
+        if (!session) {
+          els.modelProgressText.textContent =
+            'Downloading… this Chrome build is not reporting exact progress.';
+        }
+      }, 15000);
+
+      try {
+        session = await LanguageModel.create({
+          ...MODEL_OPTIONS,
+          initialPrompts: [{ role: 'system', content: SYSTEM_PROMPT }],
+          monitor(monitor) {
+            monitor.addEventListener('downloadprogress', (event) => {
+              const percent = Math.round(event.loaded * 100);
+              setStatus(els.aiStatus, `Chrome AI: downloading ${percent}%`, 'warn');
+              setModelProgress(percent, `Downloading Gemini Nano… ${percent}%`);
+            });
+          },
+        });
+      } catch (error) {
+        els.prepareButton.disabled = false;
+        els.prepareButton.textContent = 'Try again';
+        setModelProgress(0, `Could not prepare the model: ${error.message}`);
+        throw error;
+      }
+
+      setStatus(els.aiStatus, 'Chrome AI: ready', 'ok');
+      setModelReady();
+      return session;
+    }
+
+    async function ask(question) {
+      const text = question.trim();
+      if (!text || busy) return;
+
+      busy = true;
+      els.askButton.disabled = true;
+      els.resetButton.disabled = true;
+      els.answer.className = 'answer placeholder';
+      els.answer.textContent = 'Thinking…';
+
+      try {
+        const model = await ensureSession();
+
+        log('Asking the model for a structured query plan…');
+        const planRaw = await model.prompt(
+          `Question: ${text}\n\nReturn the query plan.`,
+          { responseConstraint: PLAN_SCHEMA, omitResponseConstraintInput: true },
+        );
+        const plan = normalizePlan(planRaw);
+        els.plan.textContent = JSON.stringify(plan, null, 2);
+        els.query.textContent = describeQuery(plan);
+        log(`Plan: ${plan.operation} (${plan.rationale})`);
+
+        log('Reading matching documents from Firestore…');
+        const { rows, summary } = await runPlan(plan);
+        renderSummary(summary);
+        renderRows(rows);
+        log(`Firestore returned ${rows.length} document(s).`);
+
+        const exampleRows = rows.slice(0, 5).map((row) => ({
+          orderId: row.orderId,
+          status: row.status,
+          amount: row.amount,
+          createdAt: row.createdAt ? row.createdAt.toISOString() : null,
+        }));
+        const answerRaw = await model.prompt(
+          [
+            `User question: ${text}`,
+            `Computed data: ${JSON.stringify(summary)}`,
+            `Example rows: ${JSON.stringify(exampleRows)}`,
+            'Answer in one or two sentences using only these numbers.',
+            'Return a JSON object with one field named "answer" containing that sentence.',
+            'Do not mention JSON, schemas, Firestore, or the model in the answer.',
+          ].join('\n'),
+          { responseConstraint: ANSWER_SCHEMA, omitResponseConstraintInput: true },
+        );
+        const answer = parseAnswer(answerRaw);
+        els.answer.className = 'answer';
+        els.answer.textContent = answer;
+        log('Answer generated locally.');
+      } catch (error) {
+        els.answer.className = 'answer';
+        els.answer.textContent = `Could not answer: ${error.message}`;
+        log(`Error: ${error.message}`);
+      } finally {
+        busy = false;
+        els.askButton.disabled = false;
+        els.resetButton.disabled = false;
+      }
+    }
+
+    async function resetData() {
+      if (busy || !window.confirm('Reload the demo orders relative to the current time?')) return;
+      els.resetButton.disabled = true;
+      try {
+        const orders = buildDemoOrders();
+        const batch = writeBatch(db);
+        for (const order of orders) {
+          batch.set(doc(db, 'orders', order.orderId), {
+            orderId: order.orderId,
+            createdAt: Timestamp.fromDate(new Date(order.createdAt)),
+            status: order.status,
+            amount: order.amount,
+            customer: order.customer,
+            items: order.items,
+          });
+        }
+        await batch.commit();
+        await refreshFirebaseStatus();
+        log(`Reloaded ${orders.length} demo orders.`);
+      } catch (error) {
+        log(`Could not reset data: ${error.message}`);
+      } finally {
+        els.resetButton.disabled = false;
+      }
+    }
+
+    for (const example of EXAMPLES) {
+      const chip = document.createElement('button');
+      chip.type = 'button';
+      chip.className = 'chip';
+      chip.textContent = example;
+      chip.addEventListener('click', () => {
+        els.input.value = example;
+        ask(example);
+      });
+      els.examples.append(chip);
+    }
+
+    els.form.addEventListener('submit', (event) => {
+      event.preventDefault();
+      ask(els.input.value);
+    });
+    els.resetButton.addEventListener('click', resetData);
+    els.prepareButton.addEventListener('click', async () => {
+      try {
+        await ensureSession();
+        log('Model is ready.');
+      } catch (error) {
+        log(`Could not prepare model: ${error.message}`);
+      }
+    });
+
+    log('Ready. Open http://localhost:3000 in desktop Chrome.');
+    refreshAiStatus();
+    refreshFirebaseStatus();
+  </script>
+</body>
+</html>

@@ -1,0 +1,50 @@
+services:
+  firebase:
+    build:
+      context: .
+      dockerfile: firebase/Dockerfile
+    command: ["firebase", "emulators:start", "--only", "firestore", "--project", "demo-lajosllm"]
+    ports:
+      - "8080:8080"
+      - "8081:8081"
+    volumes:
+      - ./firebase/firebase.json:/app/firebase.json:ro
+      - ./firebase/firestore.rules:/app/firestore.rules:ro
+      - ./firebase/firestore.indexes.json:/app/firestore.indexes.json:ro
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - -e
+        - "fetch('http://127.0.0.1:8080/').then(() => process.exit(0)).catch(() => process.exit(1))"
+      interval: 3s
+      timeout: 3s
+      retries: 40
+      start_period: 15s
+
+  seed:
+    build:
+      context: .
+      dockerfile: firebase/Dockerfile
+    command: ["node", "/app/seed.js"]
+    environment:
+      FIRESTORE_EMULATOR_HOST: firebase:8080
+      FIRESTORE_PROJECT_ID: demo-lajosllm
+    volumes:
+      - ./firebase/seed.js:/app/seed.js:ro
+      - ./shared:/app/shared:ro
+    depends_on:
+      firebase:
+        condition: service_healthy
+    restart: "no"
+
+  web:
+    image: nginx:alpine
+    ports:
+      - "3000:80"
+    volumes:
+      - ./web/index.html:/usr/share/nginx/html/index.html:ro
+      - ./shared:/usr/share/nginx/html/shared:ro
+    depends_on:
+      firebase:
+        condition: service_healthy

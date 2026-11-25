@@ -1,0 +1,7 @@
+{
+  "name": "lajosllm-chrome-ai-firebase-demo",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Local Chrome built-in AI demo that queries a Firebase Firestore emulator."
+}
